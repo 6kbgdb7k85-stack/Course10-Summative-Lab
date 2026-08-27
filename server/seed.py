@@ -14,6 +14,9 @@ with app.app_context():
     users = []
     usernames = []
 
+    User.query.delete()
+    Note.query.delete()
+
     for i in range(20):
         username = fake.first_name()
 
