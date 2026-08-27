@@ -31,7 +31,7 @@ class User(db.Model):
 class UserSchema(Schema):
     id = fields.Int()
     username = fields.String()
-    notes = fields.List(fields.Nested(lambda: NotesSchema(exclude=('user',))))
+    notes = fields.List(fields.Nested(lambda: NoteSchema(exclude=('user',))))
 
 class Note(db.Model):
     __tablename__ = 'notes'
@@ -46,7 +46,7 @@ class Note(db.Model):
     def __repr__(self):
         return f'<Note {self.id}, {self.title}, {self.content}, {self.user_id}>'
 
-class NotesSchema(Schema):
+class NoteSchema(Schema):
     id = fields.Int()
     title = fields.String()
     content = fields.String()
