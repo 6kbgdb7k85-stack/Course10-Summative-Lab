@@ -56,8 +56,17 @@ class CheckToken(Resource):
 class NoteList(Resource):
     def get(self):
         user_id = get_jwt_identity()
-        notes = Note.query.filter(Note.user_id==user_id).all()
-        return make_response([NotesSchema().dump(note) for note in notes], 200)
+        page = request.args.get('page',1,type=int)
+        per_page = request.args.get('per_page',5,type=int)
+        pagination = Note.query.filter(Note.user_id==user_id).paginate(page=page,per_page=per_page,error_out=False)
+        notes = pagination.items
+        return {
+            'page':page,
+            'per_page':per_page,
+            'total': pagination.total,
+            'total_pages':pagination.pages,
+            'items':[NoteSchema().dump(note) for note in notes]
+        }, 200
     def post(self):
         user_id = get_jwt_identity()
         user = User.query.filter(User.id==user_id).first()
@@ -68,14 +77,48 @@ class NoteList(Resource):
         try:
             db.session.add(note)
             db.session.commit()
-            return make_response(NotesSchema().dump(note), 201)
+            return make_response(NoteSchema().dump(note), 201)
         except IntegrityError:
             return {'error':'400 Bad Request'}, 400
+
+class NoteView(Resource):
+    def get(self, id):
+        user_id = get_jwt_identity()
+        user = User.query.filter(User.id==user_id).first()
+        note = Note.query.filter(Note.id==id).first()
+        if not note:
+            return {'error':f'404 Note {id} not found'}
+        
+        if note.user != user:
+            return {'error':'403 Forbidden'}
+        else:
+            return NoteSchema().dump(note), 200
+
+    def patch(self,id):
+        user_id = get_jwt_identity()
+        user = User.query.filter(User.id==user_id).first()
+        note = Note.query.filter(Note.id==id).first()
+        if not note:
+            return {'error':f'404 Note {id} not found'}
+
+        if note.user != user:
+            return {'error':'403 Forbidden'}
+        else:
+            request_body = request.get_json()
+            for k,v in request_body.items():
+                if hasattr(note,k):
+                    setattr(note,k,v)
+            try:
+                db.session.commit()
+                return NoteSchema().dump(note), 200
+            except IntegrityError:
+                return {'error':'400 Bad Request'}
 
 api.add_resource(Login,'/login',endpoint='login')
 api.add_resource(Signup,'/signup',endpoint='signup')
 api.add_resource(CheckToken,'/me',endpoint='me')
 api.add_resource(NoteList,'/notes',endpoint='notes')
+api.add_resource(NoteView,'/notes/<int:id>',endpoint='note')
 
 
 if __name__ == '__main__':
