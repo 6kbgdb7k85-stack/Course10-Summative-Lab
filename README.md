@@ -27,8 +27,8 @@ Personal Notes app backend for Course 10 summative lab
     - POST: return jwt auth token to log in existing user
 - /me
     - GET: check for jwt auth token to ensure user is logged in
-- /notes
-    - GET: return paginated list of notes owned by the user
+- /notes?page=:int&per_page=:int
+    - GET: return paginated list of notes owned by the user. Can be called as /notes
         - page and per_page default to 1 and 5 respectively
     - POST: create new note with input data
 - /notes/:note_id
