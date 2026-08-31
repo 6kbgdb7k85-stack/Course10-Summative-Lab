@@ -34,7 +34,7 @@ def check_user_owns_resource():
         resource = user_owned_resources.get(request.endpoint,None)
         #make sure the route params match existing resource specifications before proceeding
         if not resource or not entity_id:
-            return make_response({'error':'400 Bad Request'})
+            return make_response({'error':'400 Bad Request'}, 400)
         entity = resource.query.filter(resource.id == entity_id).first()
         #make sure instance of resource was found
         if not entity:
@@ -48,7 +48,7 @@ class Signup(Resource):
         username = request.get_json().get('username')
         password = request.get_json().get('password')
         if not username or not password:
-            return make_response({'error':'400 Bad Request'})
+            return make_response({'error':'400 Bad Request'}, 400)
         user = User(username=username)
         user.password_hash = password
 
@@ -58,14 +58,14 @@ class Signup(Resource):
             access_token = create_access_token(identity=str(user.id))
             return make_response(jsonify(token=access_token, user=UserSchema().dump(user)),201)
         except IntegrityError:
-            return make_response({'error':'422 Unprocessable Entity'}, 400)
+            return make_response({'error':'422 Unprocessable Entity'}, 422)
 
 class Login(Resource):
     def post(self):
         username = request.get_json().get('username')
         password = request.get_json().get('password')
         user = User.query.filter(User.username == username).first()
-
+        #check credentials and log user in if matching
         if user and user.authenticate(password):
             access_token = create_access_token(identity=str(user.id))
             return make_response(jsonify(token=access_token, user=UserSchema().dump(user)), 200)
@@ -83,6 +83,7 @@ class NoteList(Resource):
         user_id = get_jwt_identity()
         page = request.args.get('page',1,type=int)
         per_page = request.args.get('per_page',5,type=int)
+        #paginate notes owned by the user only
         pagination = Note.query.filter(Note.user_id==user_id).paginate(page=page,per_page=per_page,error_out=False)
         notes = pagination.items
         return make_response({
@@ -109,7 +110,7 @@ class NoteList(Resource):
 class NoteView(Resource):
     def get(self, note_id):
         note = Note.query.filter(Note.id==note_id).first()
-        return NoteSchema().dump(note), 200
+        return make_response(NoteSchema().dump(note), 200)
 
     def patch(self,note_id):
         note = Note.query.filter(Note.id==note_id).first()
@@ -131,7 +132,7 @@ class NoteView(Resource):
             db.session.commit()
             return make_response({}, 204)
         except:
-            return make_response({'error':'500 server error'})
+            return make_response({'error':'500 server error'}, 500)
 
 api.add_resource(Login,'/login',endpoint='login')
 api.add_resource(Signup,'/signup',endpoint='signup')
